@@ -160,3 +160,71 @@ draws %>%
 ```
 
 
+
+
+# 标准化
+
+```{r}
+standardize <- function(x) {
+  (x - mean(x)) / sd(x)
+}
+
+d_s <- d %>% 
+  mutate(across(everything(), standardize))
+d_s
+```
+
+
+```{r}
+library(brms)
+
+mod_s <- brm(
+  bf(Social_connect ~ Mnos) +
+    bf(Skepticism ~ Mnos) +
+    bf(Support_robot ~ Mnos + Social_connect + Skepticism) +
+    set_rescor(FALSE),
+  family = gaussian,
+  data   = d_s,
+  chains = 4,
+  cores  = 4
+)
+```
+
+
+
+```{r}
+draws <- as_draws_df(mod_s)
+
+
+tbl_orders <- c("a1", "a2", "b1", "b2", 
+                "cprime", "a1b1", "a2b2", "indirect_effect")
+
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+

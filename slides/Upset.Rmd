@@ -211,7 +211,16 @@ knitr::include_graphics("./images/Figure05_03.png")
 
 
 .pull-right[
-<br>
+.footnotesize[
+```{r, eval=FALSE}
+fit %>% 
+  standardizedSolution(type = "std.all") %>% 
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, estimate = est.std, se, 
+         pvalue, ci.lower, ci.upper) 
+```
+]
+
 ```{r, echo=FALSE}
 fit %>% 
   standardizedSolution(type = "std.all") %>% 
@@ -233,7 +242,7 @@ fit %>%
 ---
 class: center, middle
 
-# 贝叶斯模型
+# 贝叶斯 recode
 
 
 
@@ -430,6 +439,134 @@ draws %>%
 
 
 
+
+---
+## 标准化后的结果
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_02.png")
+```
+
+]
+
+--
+
+.pull-right[
+
+```{r, echo=FALSE}
+library(brms)
+#mod_s %>%  readr::write_rds("./fits/mod_s.rds")
+mod_s <- readr::read_rds("./fits/mod_s.rds")
+```
+
+.footnotesize[
+```{r, eval=FALSE}
+standardize <- function(x) {                       #<<
+  (x - mean(x)) / sd(x)                            #<<
+}                                                  #<<
+
+d_s <- d %>%                                       #<<
+  mutate(across(everything(), standardize))        #<<
+
+
+mod_s <- brm(
+  bf(Social_connect ~ Mnos) +                                  
+    bf(Skepticism ~ Mnos) +                                    
+    bf(Support_robot ~ Mnos + Social_connect + Skepticism) +   
+    set_rescor(FALSE),                                         
+  
+  family = gaussian,
+  data   = d_s,     #<<
+  chains = 4,
+  cores  = 4
+)
+```
+]
+]
+
+
+
+
+---
+
+.pull-left[
+
+## 标准化后的结果
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_02.png")
+```
+
+]
+
+
+.pull-right[
+
+.footnotesize[
+```{r, eval=FALSE}
+draws <- as_draws_df(mod_s) #<<
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95)
+```
+]
+
+
+
+```{r, echo=FALSE}
+draws <- as_draws_df(mod_s)
+
+tbl_orders <- c("a1", "a2", "b1", "b2", 
+                "cprime", "a1b1", "a2b2", "indirect_effect")
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::line_spacing(space = 0.7) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+]
 
 
 
