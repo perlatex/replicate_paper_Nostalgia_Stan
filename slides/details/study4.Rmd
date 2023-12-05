@@ -1,0 +1,271 @@
+---
+title: "从数据到论文"
+author: "姓名"
+date: "`r Sys.Date()`"
+output: 
+  officedown::rdocx_document:
+    number_sections: yes
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo         = FALSE,
+    warning      = FALSE, 
+    message      = FALSE,
+    fig.width    = 5, 
+    fig.asp      = 0.618,
+    dpi          = 600,
+    fig.showtext = TRUE
+)
+options(digits = 3)
+```
+
+
+我们的课程目标：用R语言生成一份完整的word分析报告，内容包括读取数据，画出图形以及建立模型。
+
+
+
+# 数据
+
+```{r}
+library(tidyverse)
+
+rawdat <- haven::read_sav("../data/Study 4/Study 4.sav")
+sjPlot::view_df(rawdat)
+```
+
+
+```{r}
+d <- rawdat %>% 
+  rowwise() %>% 
+  mutate(
+    Nostalgia = mean(c_across(starts_with("NOS"))),
+    Skepticism = mean(c_across(starts_with("SKEP"))),
+    Social_connect = mean(c_across(starts_with("SCN"))),
+    Support_robot = mean(c_across(starts_with("SUPPORT"))),
+    Adoption_robot = sum(c_across(starts_with("ADOPT"))),
+  ) %>% 
+    ungroup() %>% 
+    select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+
+d %>% 
+  head() %>% 
+  flextable::flextable()
+```
+
+
+
+
+# Procedure and Materials
+
+```{r}
+rawdat %>%  
+  select(starts_with("NOS")) %>% 
+  performance::cronbachs_alpha()
+```
+
+```{r}
+rawdat %>%  
+  select(starts_with("SCN")) %>% 
+  performance::cronbachs_alpha()
+```
+
+
+```{r}
+rawdat %>%  
+  select(starts_with("SKEP")) %>% 
+  performance::cronbachs_alpha()
+```
+
+
+```{r}
+rawdat %>%  
+  select(starts_with("SUPPORT")) %>% 
+  performance::cronbachs_alpha()
+```
+
+# Results and Discussion
+
+```{r}
+d %>% 
+  group_by(Mnos) %>% 
+  summarise(
+    M  = mean(Nostalgia),
+    SD = sd(Nostalgia)
+  )
+
+d %>% 
+ rstatix::anova_test(Nostalgia ~ Mnos)
+```
+
+
+```{r}
+d %>% 
+  group_by(Mnos) %>% 
+  summarise(
+    M  = mean(Social_connect),
+    SD = sd(Social_connect)
+  )
+
+d %>% 
+ rstatix::anova_test(Social_connect ~ Mnos)
+```
+
+
+```{r}
+d %>% 
+  group_by(Mnos) %>% 
+  summarise(
+    M  = mean(Skepticism),
+    SD = sd(Skepticism)
+  )
+
+d %>% 
+ rstatix::anova_test(Skepticism ~ Mnos)
+```
+
+
+
+```{r}
+d %>% 
+  group_by(Mnos) %>% 
+  summarise(
+    M  = mean(Support_robot),
+    SD = sd(Support_robot)
+  )
+
+d %>% 
+ rstatix::anova_test(Support_robot ~ Mnos)
+```
+
+
+```{r}
+d %>% 
+  group_by(Mnos) %>% 
+  summarise(
+   across(Adoption_robot, list(M = mean, SD = sd))
+)
+d %>% 
+ rstatix::anova_test(Adoption_robot ~ Mnos)
+```
+# Mediation Analyses
+
+table 6
+```{r}
+d_corr <- d %>% 
+  select(Mnos, Social_connect, Skepticism, Support_robot, Adoption_robot) %>% 
+  cor()
+
+d_corr[lower.tri(d_corr)] <- NA
+
+d_corr <- d_corr %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "Variables")
+
+```
+
+```{r}
+d %>% 
+  select(Mnos, Social_connect, Skepticism, Support_robot, Adoption_robot) %>% 
+  summarise(
+    across(everything(), list(Mean = mean, Std.Dev = sd))
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("Variables", ".value"),
+    names_pattern = "(.*)_(Mean|Std.Dev)"
+  )  %>% 
+  left_join(
+    d_corr,
+    by = join_by(Variables)
+  ) %>% 
+  flextable::flextable() %>% 
+  flextable::autofit()
+```
+
+
+
+
+
+## Support for Research on Companion Robots. (Figure 5a)
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Social_connect ~ a1 * Mnos
+  Skepticism     ~ a2 * Mnos
+
+  Support_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
+  
+  # define parameters
+  indirect_a := a1 * b1
+  indirect_b := a2 * b2
+  indirect := a1 * b1 + a2 * b2
+ 
+
+'
+
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit %>% 
+  standardizedSolution(type = "std.all") %>% 
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+## Adoption of Companion Robots (Figure 5b)
+
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Social_connect  ~ a1 * Mnos
+  Skepticism      ~ a2 * Mnos
+
+  Adoption_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
+  
+  # define parameters
+  indirect_a := a1 * b1
+  indirect_b := a2 * b2
+  indirect := a1 * b1 + a2 * b2
+
+'
+
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit %>% 
+  standardizedSolution(type = "std.all") %>% 
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 2) %>% 
+  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::autofit()
+```

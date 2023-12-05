@@ -1,0 +1,444 @@
+---
+title: "怀旧对创新技术反应的双刃剑模型"
+subtitle: "论文复现"
+author: "王敏杰"
+date: "`r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: [default, hygge, ninjutsu, xaringan-themer.css]
+    nature:
+      ratio: 16:9
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = TRUE,
+  message    = FALSE,
+  warning    = FALSE,
+  out.width  = "100%",
+  fig.asp    = 0.518, 
+  fig.show   = "hold",
+  fig.pos    = "center",
+  fig.align  = "center",
+  dpi        = 600
+)
+
+options(
+  digits = 3,
+  knitr.table.format = "html"
+)
+```
+
+
+
+
+---
+## 我们的目标论文
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/paper_cover.png")
+```
+
+.center[<https://doi.org/10.1037/pspa0000368>]
+
+
+
+---
+## .red[双刃剑]模型
+
+文章提出一个.red[双刃剑]模型**捕捉**怀旧的双重性:
+
+- 怀旧会通过增加对变革的怀疑来.blue[降低]对创新技术的好感度。
+- 同时，怀旧通过增加社会联系.orange[促进]了对创新技术反应的好感度。
+
+
+<br>
+```{r, echo=FALSE, out.width = "60%"}
+knitr::include_graphics("./images/Conceptual_model.png")
+```
+
+
+
+
+
+
+
+
+
+
+
+---
+class: center, middle
+
+# 复现 Study 4
+
+
+
+---
+## 数据
+
+.small[
+```{r}
+library(tidyverse)
+
+rawdat <- haven::read_sav("data/Study 4/Study 4.sav")
+
+d <- rawdat %>% 
+  rowwise() %>% 
+  mutate(
+    Nostalgia      = mean(c_across(starts_with("NOS"))),
+    Skepticism     = mean(c_across(starts_with("SKEP"))),
+    Social_connect = mean(c_across(starts_with("SCN"))),
+    Support_robot  = mean(c_across(starts_with("SUPPORT"))),
+    Adoption_robot =  sum(c_across(starts_with("ADOPT"))),
+  ) %>% 
+  ungroup() %>% 
+  select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+```
+]
+
+```{r, echo=FALSE}
+d %>% 
+  head(5) %>% 
+  flextable::flextable() %>% 
+  flextable::autofit()
+```
+
+
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_00.png")
+```
+
+]
+
+
+
+.pull-right[
+
+]
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_01.png")
+```
+
+]
+
+
+
+.pull-right[
+
+]
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_02.png")
+```
+
+]
+
+
+
+.pull-right[
+
+.footnotesize[
+```{r}
+library(lavaan)
+
+model <- '
+
+  Social_connect ~ a1 * Mnos
+  Skepticism     ~ a2 * Mnos
+
+  Support_robot  ~ cprime * Mnos + b1 * Social_connect + 
+                   b2 * Skepticism
+  
+  # define parameters
+  indirect  := a1 * b1 + a2 * b2
+ 
+
+'
+
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus") 
+```
+]
+
+]
+
+
+
+
+
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_03.png")
+```
+
+]
+
+
+
+.pull-right[
+<br>
+```{r, echo=FALSE}
+fit %>% 
+  standardizedSolution(type = "std.all") %>% 
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+]
+
+
+
+
+
+---
+class: center, middle
+
+# 贝叶斯模型
+
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_01.png")
+```
+
+]
+
+
+
+.pull-right[
+
+]
+
+
+
+
+---
+## Figure 5
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05_01.png")
+```
+
+]
+
+
+
+.pull-right[
+
+```{r, echo=FALSE}
+library(brms)
+#mod %>%  readr::write_rds("./fits/mod.rds")
+mod <- readr::read_rds("./fits/mod.rds")
+```
+
+.footnotesize[
+```{r, eval=FALSE}
+library(brms)
+
+mod <- brm(
+  bf(Social_connect ~ Mnos) +                                  #<<
+    bf(Skepticism ~ Mnos) +                                    #<<
+    bf(Support_robot ~ Mnos + Social_connect + Skepticism) +   #<<
+    set_rescor(FALSE),                                         #<<
+  
+  family = gaussian,
+  data   = d,
+  chains = 4,
+  cores  = 4
+)
+```
+]
+]
+
+
+
+
+
+---
+
+.pull-left[
+
+## Figure 5
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_01.png")
+```
+
+]
+
+--
+
+.pull-right[
+
+.footnotesize[
+```{r, eval=FALSE}
+draws <- as_draws_df(mod)
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95)
+```
+]
+
+
+
+```{r, echo=FALSE}
+draws <- as_draws_df(mod)
+
+tbl_orders <- c("a1", "a2", "b1", "b2", 
+                "cprime", "a1b1", "a2b2", "indirect_effect")
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::line_spacing(space = 0.7) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+]
+
+
+
+
+---
+## Bayesian interpretation
+
+
+```{r, fig.width = 10, fig.asp= 0.45, echo=FALSE}
+library(ggdist)
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  
+  ggplot(aes(x = value)) +
+  geom_vline(xintercept = 0, color = "grey50", linetype = 2) +
+  geom_histogram(binwidth = .025, boundary = 0, 
+                 color = "white", fill = "skyblue3", size = 1/4) +
+  ggdist::stat_pointinterval(
+    aes(y = 0), 
+    point_interval = mode_hdi, .width = .95
+  ) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  xlab("posterior") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    strip.background = element_rect(color = "transparent", fill = "transparent")
+  ) +
+  facet_wrap(vars(factor(item, levels = tbl_orders)), nrow = 2)
+```
+
+
+
+
+
+
+
+
+
+---
+class: center, middle
+
+# 感谢 R 和 Stan 语言之美!
+
+本幻灯片由 R 包 [**xaringan**](https://github.com/yihui/xaringan) 和 [**flipbookr**](https://github.com/EvaMaeRey/flipbookr) 生成
+

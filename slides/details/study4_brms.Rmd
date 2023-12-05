@@ -1,0 +1,162 @@
+---
+title: "从数据到论文"
+author: "姓名"
+date: "`r Sys.Date()`"
+output: 
+  officedown::rdocx_document:
+    number_sections: yes
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo         = FALSE,
+    warning      = FALSE, 
+    message      = FALSE,
+    fig.width    = 5, 
+    fig.asp      = 0.618,
+    dpi          = 600,
+    fig.showtext = TRUE
+)
+options(digits = 3)
+```
+
+
+我们的课程目标：用R语言生成一份完整的word分析报告，内容包括读取数据，画出图形以及建立模型。
+
+
+
+# 数据
+
+```{r}
+library(tidyverse)
+
+rawdat <- haven::read_sav("../data/Study 4/Study 4.sav")
+sjPlot::view_df(rawdat)
+```
+
+
+```{r}
+d <- rawdat %>% 
+  rowwise() %>% 
+  mutate(
+    Nostalgia      = mean(c_across(starts_with("NOS"))),
+    Skepticism     = mean(c_across(starts_with("SKEP"))),
+    Social_connect = mean(c_across(starts_with("SCN"))),
+    Support_robot  = mean(c_across(starts_with("SUPPORT"))),
+    Adoption_robot =  sum(c_across(starts_with("ADOPT"))),
+  ) %>% 
+  ungroup() %>% 
+  select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+
+d %>% 
+  head() %>% 
+  flextable::flextable()
+```
+
+
+
+# 贝叶斯模型
+
+```{r}
+library(brms)
+
+mod <- brm(
+  bf(Social_connect ~ Mnos) +
+    bf(Skepticism ~ Mnos) +
+    bf(Support_robot ~ Mnos + Social_connect + Skepticism) +
+    set_rescor(FALSE),
+  family = gaussian,
+  data   = d,
+  chains = 4,
+  cores  = 4
+)
+```
+
+
+
+```{r}
+print(mod, digits = 3)
+
+fixef(mod)
+```
+
+
+```{r}
+draws <- as_draws_df(mod)
+
+
+tbl_orders <- c("a1", "a2", "b1", "b2", 
+                "cprime", "a1b1", "a2b2", "indirect_effect")
+
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+
+```{r, fig.width = 10, fig.asp= 0.45}
+library(ggdist)
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  
+  ggplot(aes(x = value)) +
+  geom_vline(xintercept = 0, color = "grey50", linetype = 2) +
+  geom_histogram(binwidth = .025, boundary = 0, 
+                 color = "white", fill = "skyblue3", size = 1/4) +
+  ggdist::stat_pointinterval(
+    aes(y = 0), 
+    point_interval = mode_hdi, .width = .95
+  ) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  xlab("posterior") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    strip.background = element_rect(color = "transparent", fill = "transparent")
+  ) +
+  facet_wrap(vars(factor(item, levels = tbl_orders)), nrow = 2)
+```
+
+
