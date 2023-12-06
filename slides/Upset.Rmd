@@ -176,6 +176,8 @@ model <- '
                    b2 * Skepticism
   
   # define parameters
+  a1b1      := a1 * b1 
+  a2b2      := a2 * b2
   indirect  := a1 * b1 + a2 * b2
  
 
@@ -214,21 +216,26 @@ knitr::include_graphics("./images/Figure05_03.png")
 .footnotesize[
 ```{r, eval=FALSE}
 fit %>% 
-  standardizedSolution(type = "std.all") %>% 
+  parameterestimates(standardized = T) %>%  
   filter(op %in% c("~", ":="))  %>% 
-  select(label, estimate = est.std, se, 
-         pvalue, ci.lower, ci.upper) 
+  select(label, est, se, pvalue, 
+         ci.lower, ci.upper, std.all)
 ```
 ]
 
 ```{r, echo=FALSE}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
 fit %>% 
-  standardizedSolution(type = "std.all") %>% 
+  parameterestimates(standardized = T) %>%  
   filter(op %in% c("~", ":="))  %>% 
-  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
   flextable::flextable() %>% 
   flextable::colformat_double(digits = 4) %>% 
-  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
   flextable::autofit()
 ```
 
@@ -237,6 +244,93 @@ fit %>%
 
 
 
+---
+## Study 5a
+
+.pull-left[
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_01.png")
+```
+
+]
+
+
+.pull-right[
+.footnotesize[
+```{r, eval=FALSE}
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, 
+         ci.lower, ci.upper, std.all)
+```
+]
+
+```{r, echo=FALSE}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "est", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+]
+
+
+
+---
+## Study 5a
+
+.pull-left[
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_02.png")
+```
+
+]
+
+
+.pull-right[
+.footnotesize[
+```{r, eval=FALSE}
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, 
+         ci.lower, ci.upper, std.all)
+```
+]
+
+```{r, echo=FALSE}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+]
 
 
 ---
@@ -357,8 +451,8 @@ draws %>%
 ```{r, echo=FALSE}
 draws <- as_draws_df(mod)
 
-tbl_orders <- c("a1", "a2", "b1", "b2", 
-                "cprime", "a1b1", "a2b2", "indirect_effect")
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
 
 draws %>% 
   transmute(
@@ -535,8 +629,8 @@ draws %>%
 ```{r, echo=FALSE}
 draws <- as_draws_df(mod_s)
 
-tbl_orders <- c("a1", "a2", "b1", "b2", 
-                "cprime", "a1b1", "a2b2", "indirect_effect")
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
 
 draws %>% 
   transmute(
@@ -573,7 +667,7 @@ draws %>%
 ---
 class: center, middle
 
-# 练习
+# 练习题
 
 
 
