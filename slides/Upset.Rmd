@@ -113,7 +113,7 @@ d %>%
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -131,7 +131,7 @@ knitr::include_graphics("./images/Figure05_00.png")
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -149,7 +149,7 @@ knitr::include_graphics("./images/Figure05_01.png")
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -198,7 +198,7 @@ fit <- sem(model,
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -247,7 +247,7 @@ class: center, middle
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -267,7 +267,7 @@ knitr::include_graphics("./images/Figure05_01.png")
 
 
 ---
-## Figure 5
+## Figure 5a
 
 .pull-left[
 
@@ -314,7 +314,7 @@ mod <- brm(
 
 .pull-left[
 
-## Figure 5
+## Study 5a
 ```{r, echo=FALSE}
 knitr::include_graphics("./images/study4_01.png")
 ```
@@ -569,6 +569,50 @@ draws %>%
 ]
 
 
+
+---
+class: center, middle
+
+# 练习
+
+
+
+---
+## Figure 5b
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/Figure05b_00.png")
+```
+
+]
+
+
+
+.pull-right[
+
+]
+
+
+
+
+---
+## Study 5b
+
+.pull-left[
+
+```{r, echo=FALSE}
+knitr::include_graphics("./images/study4b_00.png")
+```
+
+]
+
+
+
+.pull-right[
+
+]
 
 
 
