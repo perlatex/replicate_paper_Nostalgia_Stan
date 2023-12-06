@@ -32,12 +32,8 @@ options(digits = 3)
 ```{r}
 library(tidyverse)
 
-rawdat <- haven::read_sav("../data/Study 4/Study 4.sav")
-sjPlot::view_df(rawdat)
-```
+rawdat <- haven::read_sav("data/Study 4/Study 4.sav")
 
-
-```{r}
 d <- rawdat %>% 
   rowwise() %>% 
   mutate(
@@ -45,15 +41,57 @@ d <- rawdat %>%
     Skepticism     = mean(c_across(starts_with("SKEP"))),
     Social_connect = mean(c_across(starts_with("SCN"))),
     Support_robot  = mean(c_across(starts_with("SUPPORT"))),
-    Adoption_robot =  sum(c_across(starts_with("ADOPT"))),
+    Adoption_robot = sum(c_across(starts_with("ADOPT"))),
   ) %>% 
-  ungroup() %>% 
-  select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+    ungroup() %>% 
+    select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
 
 d %>% 
   head() %>% 
   flextable::flextable()
 ```
+
+
+
+
+
+# Support for Research on Companion Robots. (Figure 5a)
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Social_connect ~ a1 * Mnos
+  Skepticism     ~ a2 * Mnos
+
+  Support_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
+  
+  # define parameters
+  indirect   := a1 * b1 + a2 * b2
+ 
+'
+
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit %>% 
+  standardizedSolution(type = "std.all") %>% 
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::autofit()
+```
+
 
 
 
@@ -78,9 +116,9 @@ mod <- brm(
 
 ```{r}
 print(mod, digits = 3)
-
-fixef(mod)
 ```
+
+
 
 
 ```{r}
@@ -120,6 +158,7 @@ draws %>%
 
 
 
+
 ```{r, fig.width = 10, fig.asp= 0.45}
 library(ggdist)
 draws %>% 
@@ -145,7 +184,7 @@ draws %>%
   geom_vline(xintercept = 0, color = "grey50", linetype = 2) +
   geom_histogram(binwidth = .025, boundary = 0, 
                  color = "white", fill = "skyblue3", size = 1/4) +
-  ggdist::stat_pointinterval(
+  stat_pointinterval(
     aes(y = 0), 
     point_interval = mode_hdi, .width = .95
   ) +
@@ -160,8 +199,6 @@ draws %>%
 ```
 
 
-
-
 # 标准化
 
 ```{r}
@@ -174,8 +211,6 @@ d_s <- d %>%
 
 mod_s <- update(mod, newdata = d_s)
 ```
-
-
 
 
 
