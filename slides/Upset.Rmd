@@ -1,7 +1,7 @@
 ---
 title: "怀旧对创新技术反应的双刃剑模型"
 subtitle: "论文复现"
-author: "王敏杰"
+author: "38552109@qq.com"
 date: "`r Sys.Date()`"
 output:
   xaringan::moon_reader:
@@ -662,6 +662,41 @@ draws %>%
 
 ]
 
+
+---
+## 对比
+<br>
+```{r, fig.width = 8, fig.asp= 0.4, echo=FALSE}
+ p1 <- fit %>%
+   standardizedSolution(type = "std.all") %>%
+   filter(op %in% c("~", ":=")) %>%
+   filter(label %in% c("a1", "a2")) %>%
+   ggplot(aes(x = est.std, y = label)) +
+   geom_pointrange(aes(xmin = ci.lower, xmax = ci.upper)) +
+   scale_x_continuous(limits = c(0, 0.6)) +
+   labs(x = NULL, y = NULL, title = "Frequentist using lavaan") +
+   theme_bw(base_size = 16)
+
+
+ p2 <- draws %>%
+   transmute(
+     a1   = b_Socialconnect_Mnos,
+     a2   = b_Skepticism_Mnos
+   ) %>%
+   pivot_longer(
+     cols        = everything(),
+     names_to    = "item",
+     values_to   = "value"
+   ) %>%
+   ggplot(aes(x = value, y = item)) +
+   ggdist::stat_halfeye(fill = "skyblue3") +
+   labs(x = NULL, y = NULL, title = "Bayesian using brms") +
+   theme_bw(base_size = 16)
+
+
+ library(cowplot)
+ plot_grid(p1, p2, align = "hv", axis = "tblr")
+```
 
 
 ---
