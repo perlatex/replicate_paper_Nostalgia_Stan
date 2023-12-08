@@ -179,7 +179,25 @@ knitr::include_graphics("./images/Figure05_00.png")
 ```{r, echo=FALSE}
 knitr::include_graphics("./images/Figure05_01.png")
 ```
+```{r, echo=FALSE}
+ft <- d %>%
+  head(6) %>%
+  flextable::flextable() %>%
+  flextable::fontsize(size = 9, part = "all") %>%
+  flextable::line_spacing(space = 0.7) %>%
+  flextable::color(
+    j = c("Mnos", "Social_connect",  "Skepticism", "Support_robot"),
+    color = "orange",
+    part = "all"
+  ) %>%
+  flextable::bold(
+    j = c("Mnos", "Social_connect",  "Skepticism", "Support_robot"),
+    part = "all"
+  ) %>%
+  flextable::autofit()
 
+ft
+```
 ]
 
 
@@ -198,6 +216,9 @@ knitr::include_graphics("./images/Figure05_01.png")
 knitr::include_graphics("./images/Figure05_02.png")
 ```
 
+```{r, echo=FALSE}
+ft
+```
 ]
 
 
