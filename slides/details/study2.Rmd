@@ -1,0 +1,147 @@
+---
+title: "从数据到论文"
+author: "姓名"
+date: "`r Sys.Date()`"
+output: 
+  officedown::rdocx_document:
+    number_sections: yes
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo         = FALSE,
+    warning      = FALSE, 
+    message      = FALSE,
+    fig.width    = 5, 
+    fig.asp      = 0.618,
+    dpi          = 600,
+    fig.showtext = TRUE
+)
+options(digits = 3)
+```
+
+
+我们的课程目标：用R语言生成一份完整的word分析报告，内容包括读取数据，画出图形以及建立模型。
+
+
+
+# 数据
+
+```{r}
+library(tidyverse)
+
+rawdat <- haven::read_sav("data/Study 2/Study 2.sav")  
+  
+sjPlot::view_df(rawdat)
+```
+
+```{r}
+rawdat %>% count(sex)
+
+rawdat %>% 
+  summarise(
+    n  = n(),
+    M  = mean(age),
+    SD = sd(age)
+  )
+```
+
+
+
+
+```{r}
+d <- rawdat %>% 
+  rowwise() %>% 
+  transmute(
+    Nostalgia   = mean(c_across(starts_with("Nostalgia"))),
+    Connect     = mean(c_across(starts_with("Connect"))),
+    Skepticism  = mean(c_across(starts_with("skepticism"))),
+    Support_AI  = mean(c_across(starts_with("Support_AI"))),
+    Support_5G  = mean(c_across(starts_with("Support_5G")))
+  ) %>% 
+  ungroup()
+
+d %>% 
+  head() %>% 
+  flextable::flextable()
+```
+
+
+```{r}
+d %>% 
+  summarise(
+    across(everything(), list(M = mean, SD = sd))
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("Variables", ".value"),
+    names_pattern = "(.*)_(M|SD)"
+  )
+```
+
+
+```{r}
+d_c <- cor(d)
+
+d_c[lower.tri(d_c)] <- NA
+
+d_c %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "Variables")
+```
+
+
+
+
+```{r}
+constructs <- c("Nostalgia", "Connect", "skepticism", "Support_AI", "Support_5G")
+constructs %>%
+  set_names() %>%
+  map(
+    ~ rawdat %>%
+      summarise(
+        alpha = performance::cronbachs_alpha(pick(starts_with(.x)))
+      )
+  ) %>%
+  list_rbind(names_to = "term")
+```
+
+
+
+
+# Figure 2
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ Nostalgia
+  Skepticism ~ Nostalgia
+  Support_AI ~ Nostalgia + Connect + Skepticism
+  Support_5G ~ Nostalgia + Connect + Skepticism
+
+ 
+'
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+

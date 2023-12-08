@@ -61,30 +61,22 @@ d %>%
 # Procedure and Materials
 
 ```{r}
-rawdat %>%  
-  select(starts_with("NOS")) %>% 
-  performance::cronbachs_alpha()
-```
-
-```{r}
-rawdat %>%  
-  select(starts_with("SCN")) %>% 
-  performance::cronbachs_alpha()
-```
-
-
-```{r}
-rawdat %>%  
-  select(starts_with("SKEP")) %>% 
-  performance::cronbachs_alpha()
+constructs <- c("NOS", "SCN", "SKEP", "SUPPORT")
+constructs %>%
+  set_names() %>%
+  map(
+    ~ rawdat %>%
+      summarise(
+        alpha = performance::cronbachs_alpha(pick(starts_with(.x)))
+      )
+  ) %>%
+  list_rbind(names_to = "term")
 ```
 
 
-```{r}
-rawdat %>%  
-  select(starts_with("SUPPORT")) %>% 
-  performance::cronbachs_alpha()
-```
+
+
+
 
 # Results and Discussion
 
@@ -150,6 +142,8 @@ d %>%
 d %>% 
  rstatix::anova_test(Adoption_robot ~ Mnos)
 ```
+
+
 # Mediation Analyses
 
 table 6
@@ -163,8 +157,8 @@ d_corr[lower.tri(d_corr)] <- NA
 d_corr <- d_corr %>% 
   as.data.frame() %>% 
   rownames_to_column(var = "Variables")
-
 ```
+
 
 ```{r}
 d %>% 
@@ -219,13 +213,18 @@ fit <- sem(model,
 
 
 ```{r}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
 fit %>% 
-  standardizedSolution(type = "std.all") %>% 
+  parameterestimates(standardized = T) %>%  
   filter(op %in% c("~", ":="))  %>% 
-  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
   flextable::flextable() %>% 
   flextable::colformat_double(digits = 4) %>% 
-  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::color(j = c("est", "std.all"), color = "red") %>%
   flextable::autofit()
 ```
 
@@ -260,12 +259,209 @@ fit <- sem(model,
 
 
 ```{r}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
 fit %>% 
-  standardizedSolution(type = "std.all") %>% 
+  parameterestimates(standardized = T) %>%  
   filter(op %in% c("~", ":="))  %>% 
-  select(label, estimate = est.std, se, pvalue, ci.lower, ci.upper) %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
   flextable::flextable() %>% 
-  flextable::colformat_double(digits = 2) %>% 
-  flextable::color(j = "estimate", color = "red") %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = c("est", "std.all"), color = "red") %>% 
   flextable::autofit()
+```
+
+
+
+
+# 贝叶斯模型
+
+```{r}
+library(brms)
+
+mod <- brm(
+  bf(Social_connect ~ Mnos) +
+    bf(Skepticism ~ Mnos) +
+    bf(Support_robot ~ Mnos + Social_connect + Skepticism) +
+    set_rescor(FALSE),
+  family = gaussian,
+  data   = d,
+  chains = 4,
+  cores  = 4
+)
+```
+
+
+
+```{r}
+print(mod, digits = 3)
+
+fixef(mod)
+```
+
+
+```{r}
+draws <- as_draws_df(mod)
+
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::line_spacing(space = 0.7) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+
+```{r, fig.width = 10, fig.asp= 0.45}
+library(ggdist)
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  
+  ggplot(aes(x = value)) +
+  geom_vline(xintercept = 0, color = "grey50", linetype = 2) +
+  geom_histogram(binwidth = .025, boundary = 0, 
+                 color = "white", fill = "skyblue3", size = 1/4) +
+  ggdist::stat_pointinterval(
+    aes(y = 0), 
+    point_interval = mode_hdi, .width = .95
+  ) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  xlab("posterior") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    strip.background = element_rect(color = "transparent", fill = "transparent")
+  ) +
+  facet_wrap(vars(factor(item, levels = tbl_orders)), nrow = 2)
+```
+
+
+
+
+# 标准化
+
+```{r}
+standardize <- function(x) {
+  (x - mean(x)) / sd(x)
+}
+
+d_s <- d %>% 
+  mutate(across(everything(), standardize))
+
+mod_s <- update(mod, newdata = d_s)
+```
+
+
+
+
+
+
+```{r}
+draws <- as_draws_df(mod_s)
+
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+draws %>% 
+  transmute(
+    a1     = b_Socialconnect_Mnos,
+    a2     = b_Skepticism_Mnos,
+    cprime = b_Supportrobot_Mnos,
+    b1     = b_Supportrobot_Social_connect,
+    b2     = b_Supportrobot_Skepticism
+  ) %>% 
+  mutate(
+    a1b1            = a1 * b1,
+    a2b2            = a2 * b2,
+    indirect_effect = a1 * b1 + a2 * b2
+  ) %>% 
+  pivot_longer(
+    cols          = everything(),
+    names_to      = "item",
+    values_to     = "value"
+  ) %>% 
+  group_by(item) %>% 
+  ggdist::mean_hdi(.width = .95) %>% 
+  arrange(factor(item, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 3) %>% 
+  flextable::line_spacing(space = 0.7) %>% 
+  flextable::color(j = "value", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+```{r, fig.width = 8, fig.asp= 0.4, echo=FALSE}
+ p1 <- fit %>%
+   standardizedSolution(type = "std.all") %>%
+   filter(op %in% c("~", ":=")) %>%
+   filter(label %in% c("a1", "a2")) %>%
+   ggplot(aes(x = est.std, y = label)) +
+   geom_pointrange(aes(xmin = ci.lower, xmax = ci.upper)) +
+   scale_x_continuous(limits = c(0, 0.6)) +
+   labs(x = NULL, y = NULL, title = "Frequentist using lavaan") +
+   theme_bw(base_size = 16)
+
+
+ p2 <- draws %>%
+   transmute(
+     a1   = b_Socialconnect_Mnos,
+     a2   = b_Skepticism_Mnos
+   ) %>%
+   pivot_longer(
+     cols        = everything(),
+     names_to    = "item",
+     values_to   = "value"
+   ) %>%
+   ggplot(aes(x = value, y = item)) +
+   ggdist::stat_halfeye(fill = "skyblue3") +
+   labs(x = NULL, y = NULL, title = "Bayesian using brms") +
+   theme_bw(base_size = 16)
+
+
+ library(cowplot)
+ plot_grid(p1, p2, align = "hv", axis = "tblr")
 ```
