@@ -80,34 +80,75 @@ class: center, middle
 
 
 ---
+
+.pull-left[
+## 数据
+.footnotesize[
+```{r, eval=FALSE}
+library(tidyverse)
+library(haven)
+rawdat <- read_sav("data/Study 4/Study 4.sav")
+
+```
+]
+]
+
+
+.pull-right[
+```{r, echo=FALSE,out.width="90%"}
+knitr::include_graphics("images/glance_00.png")
+```
+
+]
+
+
+
+
+---
+
+.pull-left[
 ## 数据
 
-.small[
+.footnotesize[
 ```{r}
 library(tidyverse)
-
-rawdat <- haven::read_sav("data/Study 4/Study 4.sav")
+library(haven)
+rawdat <- read_sav("data/Study 4/Study 4.sav")
 
 d <- rawdat %>% 
   rowwise() %>% 
-  mutate(
+  transmute(
+    Mnos           = Mnos,
     Nostalgia      = mean(c_across(starts_with("NOS"))),
     Skepticism     = mean(c_across(starts_with("SKEP"))),
     Social_connect = mean(c_across(starts_with("SCN"))),
     Support_robot  = mean(c_across(starts_with("SUPPORT"))),
     Adoption_robot =  sum(c_across(starts_with("ADOPT"))),
   ) %>% 
-  ungroup() %>% 
-  select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+  ungroup() 
 ```
 ]
 
 ```{r, echo=FALSE}
 d %>% 
-  head(5) %>% 
+  head(6) %>% 
   flextable::flextable() %>% 
+  flextable::fontsize(size = 9, part = "all") %>% 
+  flextable::line_spacing(space = 0.7) %>%
   flextable::autofit()
 ```
+
+]
+
+
+
+.pull-right[
+```{r, echo=FALSE,out.width="90%"}
+knitr::include_graphics("images/glance_01.png")
+```
+
+]
+
 
 
 
