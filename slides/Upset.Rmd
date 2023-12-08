@@ -1,7 +1,7 @@
 ---
 title: "怀旧对创新技术反应的双刃剑模型"
 subtitle: "论文复现"
-author: "38552109@qq.com"
+author: "`38552109@qq.com`"
 date: "`r Sys.Date()`"
 output:
   xaringan::moon_reader:
@@ -313,6 +313,52 @@ fit %>%
 
 
 ```{r, echo=FALSE}
+knitr::include_graphics("./images/study4_02.png")
+```
+
+]
+
+
+.pull-right[
+.footnotesize[
+```{r, eval=FALSE}
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, 
+         ci.lower, ci.upper, std.all)
+```
+]
+
+```{r, echo=FALSE}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+]
+
+
+
+
+---
+## Study 5a
+
+.pull-left[
+
+
+```{r, echo=FALSE}
 knitr::include_graphics("./images/study4_01.png")
 ```
 
@@ -349,50 +395,6 @@ fit %>%
 
 ]
 
-
-
----
-## Study 5a
-
-.pull-left[
-
-
-```{r, echo=FALSE}
-knitr::include_graphics("./images/study4_02.png")
-```
-
-]
-
-
-.pull-right[
-.footnotesize[
-```{r, eval=FALSE}
-fit %>% 
-  parameterestimates(standardized = T) %>%  
-  filter(op %in% c("~", ":="))  %>% 
-  select(label, est, se, pvalue, 
-         ci.lower, ci.upper, std.all)
-```
-]
-
-```{r, echo=FALSE}
-tbl_orders <- c("a1", "b1", "a2", "b2", 
-                "a1b1", "a2b2", "cprime", "indirect_effect")
-
-
-fit %>% 
-  parameterestimates(standardized = T) %>%  
-  filter(op %in% c("~", ":="))  %>% 
-  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
-  arrange(factor(label, levels = tbl_orders)) %>% 
-  flextable::flextable() %>% 
-  flextable::colformat_double(digits = 4) %>% 
-  flextable::color(j = "std.all", color = "red") %>% 
-  flextable::autofit()
-```
-
-
-]
 
 
 ---
