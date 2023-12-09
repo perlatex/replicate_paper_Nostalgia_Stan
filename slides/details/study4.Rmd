@@ -40,15 +40,15 @@ sjPlot::view_df(rawdat)
 ```{r}
 d <- rawdat %>% 
   rowwise() %>% 
-  mutate(
-    Nostalgia = mean(c_across(starts_with("NOS"))),
-    Skepticism = mean(c_across(starts_with("SKEP"))),
+  transmute(
+    Mnos           = Mnos,
+    Nostalgia      = mean(c_across(starts_with("NOS"))),
+    Skepticism     = mean(c_across(starts_with("SKEP"))),
     Social_connect = mean(c_across(starts_with("SCN"))),
-    Support_robot = mean(c_across(starts_with("SUPPORT"))),
-    Adoption_robot = sum(c_across(starts_with("ADOPT"))),
+    Support_robot  = mean(c_across(starts_with("SUPPORT"))),
+    Adoption_robot =  sum(c_across(starts_with("ADOPT"))),
   ) %>% 
-    ungroup() %>% 
-    select(Mnos, Nostalgia, Skepticism, Social_connect, Support_robot, Adoption_robot)
+  ungroup() 
 
 d %>% 
   head() %>% 
@@ -76,77 +76,56 @@ constructs %>%
 
 
 
-
-
 # Results and Discussion
-
 ```{r}
-d %>% 
+ta <- d %>% 
   group_by(Mnos) %>% 
-  summarise(
-    M  = mean(Nostalgia),
-    SD = sd(Nostalgia)
-  )
-
-d %>% 
- rstatix::anova_test(Nostalgia ~ Mnos)
-```
-
-
-```{r}
-d %>% 
-  group_by(Mnos) %>% 
-  summarise(
-    M  = mean(Social_connect),
-    SD = sd(Social_connect)
-  )
-
-d %>% 
- rstatix::anova_test(Social_connect ~ Mnos)
-```
-
-
-```{r}
-d %>% 
-  group_by(Mnos) %>% 
-  summarise(
-    M  = mean(Skepticism),
-    SD = sd(Skepticism)
-  )
-
-d %>% 
- rstatix::anova_test(Skepticism ~ Mnos)
+  rstatix::get_summary_stats() %>% 
+  select(variable, Mnos, mean, sd) %>% 
+  arrange(variable, Mnos)
+ta
 ```
 
 
 
 ```{r}
-d %>% 
-  group_by(Mnos) %>% 
-  summarise(
-    M  = mean(Support_robot),
-    SD = sd(Support_robot)
-  )
-
-d %>% 
- rstatix::anova_test(Support_robot ~ Mnos)
+tb <- c(
+  "Nostalgia",
+  "Skepticism",
+  "Social_connect",
+  "Support_robot",
+  "Adoption_robot"
+) %>%
+  set_names() %>%
+  map(~ as.formula(paste(.x, "~ Mnos"))) %>%
+  map(
+    ~ d %>%
+      rstatix::anova_test(.x) %>%
+      as_tibble()
+  ) %>%
+  list_rbind(names_to = "variable")
+tb
 ```
 
 
 ```{r}
-d %>% 
-  group_by(Mnos) %>% 
-  summarise(
-   across(Adoption_robot, list(M = mean, SD = sd))
-)
-d %>% 
- rstatix::anova_test(Adoption_robot ~ Mnos)
+ta %>% 
+  full_join(mutate(tb, Mnos = 0), by = join_by(variable, Mnos)) %>% 
+  flextable::flextable() %>% 
+  flextable::set_formatter(p = function(x) {
+    if_else(is.na(x), "", formatC(x, format = "e", digits = 2))
+  }) %>% 
+  flextable::hline(i = c(2,4,6,8)) %>% 
+  flextable::autofit()
 ```
 
 
-# Mediation Analyses
 
-table 6
+
+# Mediation Analyses(table 6)
+
+## using traditional way
+
 ```{r}
 d_corr <- d %>% 
   select(Mnos, Social_connect, Skepticism, Support_robot, Adoption_robot) %>% 
@@ -180,11 +159,44 @@ d %>%
 ```
 
 
+## using rstatix
+
+```{r}
+library(rstatix)
+
+d_corr <- d %>% 
+  select(-Nostalgia) %>% 
+  rstatix::cor_mat() %>% 
+  rstatix::pull_upper_triangle()
+d_corr
+
+# or
+# d %>% 
+#   rstatix::cor_mat() %>% 
+#   replace_upper_triangle(by = "-")
+```
+
+
+```{r}
+d %>% 
+  select(-Nostalgia) %>% 
+  rstatix::get_summary_stats() %>% 
+  select(variable, mean, sd) %>% 
+  left_join(
+    d_corr,
+    by = join_by(variable == rowname)
+  ) %>% 
+  flextable::flextable() %>% 
+  flextable::autofit()
+```
 
 
 
-## Support for Research on Companion Robots. (Figure 5a)
 
+
+# Support for Research on Companion Robots. (Figure 5a)
+
+## using lavaan
 ```{r}
 library(lavaan)
 
@@ -229,55 +241,9 @@ fit %>%
 ```
 
 
-## Adoption of Companion Robots (Figure 5b)
 
 
-```{r}
-library(lavaan)
-
-model <- '
-
-  Social_connect  ~ a1 * Mnos
-  Skepticism      ~ a2 * Mnos
-
-  Adoption_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
-  
-  # define parameters
-  indirect_a := a1 * b1
-  indirect_b := a2 * b2
-  indirect := a1 * b1 + a2 * b2
-
-'
-
-
-fit <- sem(model, 
-           data      = d, 
-           estimator = "MLR", 
-           mimic     = "Mplus")
-```
-
-
-
-```{r}
-tbl_orders <- c("a1", "b1", "a2", "b2", 
-                "a1b1", "a2b2", "cprime", "indirect_effect")
-
-
-fit %>% 
-  parameterestimates(standardized = T) %>%  
-  filter(op %in% c("~", ":="))  %>% 
-  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
-  arrange(factor(label, levels = tbl_orders)) %>% 
-  flextable::flextable() %>% 
-  flextable::colformat_double(digits = 4) %>% 
-  flextable::color(j = c("est", "std.all"), color = "red") %>% 
-  flextable::autofit()
-```
-
-
-
-
-# 贝叶斯模型
+## using brms
 
 ```{r}
 library(brms)
@@ -381,7 +347,7 @@ draws %>%
 
 
 
-# 标准化
+## brms 数据标准化之后
 
 ```{r}
 standardize <- function(x) {
@@ -393,8 +359,6 @@ d_s <- d %>%
 
 mod_s <- update(mod, newdata = d_s)
 ```
-
-
 
 
 
@@ -433,7 +397,7 @@ draws %>%
   flextable::autofit()
 ```
 
-
+## 对比
 ```{r, fig.width = 8, fig.asp= 0.4, echo=FALSE}
  p1 <- fit %>%
    standardizedSolution(type = "std.all") %>%
@@ -465,3 +429,98 @@ draws %>%
  library(cowplot)
  plot_grid(p1, p2, align = "hv", axis = "tblr")
 ```
+
+
+
+## using blavaan
+```{r}
+library(lavaan)
+library(blavaan)
+
+model <- '
+
+  Social_connect ~ a1 * Mnos
+  Skepticism     ~ a2 * Mnos
+
+  Support_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
+  
+  # define parameters
+  indirect_a := a1 * b1
+  indirect_b := a2 * b2
+  indirect   := a1 * b1 + a2 * b2
+ 
+
+'
+
+
+fit <- bsem(model, 
+            data      = d, 
+            estimator = "MLR", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
+fit %>% 
+  lavaan::parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":=")) %>% 
+  select(label, est, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = c("est", "std.all"), color = "red") %>%
+  flextable::autofit()
+```
+
+
+
+
+# Adoption of Companion Robots (Figure 5b)
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Social_connect  ~ a1 * Mnos
+  Skepticism      ~ a2 * Mnos
+
+  Adoption_robot  ~ cprime * Mnos + b1 * Social_connect + b2 * Skepticism
+  
+  # define parameters
+  indirect_a := a1 * b1
+  indirect_b := a2 * b2
+  indirect := a1 * b1 + a2 * b2
+
+'
+
+
+fit <- sem(model, 
+           data      = d, 
+           estimator = "MLR", 
+           mimic     = "Mplus")
+```
+
+
+
+```{r}
+tbl_orders <- c("a1", "b1", "a2", "b2", 
+                "a1b1", "a2b2", "cprime", "indirect_effect")
+
+
+fit %>% 
+  parameterestimates(standardized = T) %>%  
+  filter(op %in% c("~", ":="))  %>% 
+  select(label, est, se, pvalue, ci.lower, ci.upper, std.all) %>% 
+  arrange(factor(label, levels = tbl_orders)) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = c("est", "std.all"), color = "red") %>% 
+  flextable::autofit()
+```
+
