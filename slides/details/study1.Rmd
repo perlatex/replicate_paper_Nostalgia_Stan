@@ -1,0 +1,98 @@
+---
+title: "从数据到论文"
+author: "姓名"
+date: "`r Sys.Date()`"
+output: 
+  officedown::rdocx_document:
+    number_sections: yes
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo         = FALSE,
+  warning      = FALSE,
+  message      = FALSE,
+  fig.width    = 5,
+  fig.asp      = 0.618,
+  dpi          = 600,
+  fig.showtext = TRUE
+)
+options(digits = 3)
+```
+
+
+我们的课程目标：用R语言生成一份完整的word分析报告，内容包括读取数据，画出图形以及建立模型。
+
+
+
+
+# 数据
+
+```{r}
+library(tidyverse)
+
+rawdat <- haven::read_sav("../data/Study 1A/Study 1A.sav")
+
+sjPlot::view_df(rawdat)
+```
+
+```{r}
+rawdat %>%
+  mutate(gender = factor(gender,
+    levels = c(1, 2),
+    labels = c("men", "women")
+  )) %>%
+  count(gender)
+
+rawdat %>%
+  summarise(
+    n  = n(),
+    M  = mean(age),
+    SD = sd(age)
+  )
+```
+
+
+
+
+
+
+```{r}
+d <- rawdat %>%
+  rowwise() %>%
+  mutate(
+    connect   = mean(c_across(starts_with("con"))),
+    relation  = mean(c_across(starts_with("good")))
+  ) %>%
+  ungroup()
+
+d %>%
+  group_by(Mcon) %>%
+  summarise(
+    across(c(connect, relation), list(M = mean, SD = sd))
+  ) %>%
+  pivot_longer(
+    cols          = -Mcon,
+    names_to      = c("Variables", ".value"),
+    names_pattern = "(.*)_(M|SD)",
+    cols_vary     = "slowest"
+  ) %>%
+  flextable::flextable() %>%
+  flextable::autofit()
+```
+
+
+
+```{r}
+c("connect", "relation") %>%
+  set_names() %>%
+  map(~ as.formula(paste(.x, "~ Mcon"))) %>%
+  map(
+    ~ d %>%
+      rstatix::anova_test(.x) %>%
+      as_tibble()
+  ) %>%
+  list_rbind(names_to = "variable")
+```
