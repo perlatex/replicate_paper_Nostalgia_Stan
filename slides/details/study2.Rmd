@@ -32,7 +32,7 @@ options(digits = 3)
 ```{r}
 library(tidyverse)
 
-rawdat <- haven::read_sav("data/Study 2/Study 2.sav")  
+rawdat <- haven::read_sav("../data/Study 2/Study 2.sav")  
   
 sjPlot::view_df(rawdat)
 ```
@@ -89,7 +89,8 @@ d_c[lower.tri(d_c)] <- NA
 
 d_c %>% 
   as.data.frame() %>% 
-  rownames_to_column(var = "Variables")
+  rownames_to_column(var = "Variables") %>% 
+  flextable::flextable()
 ```
 
 
@@ -113,35 +114,172 @@ constructs %>%
 
 # Figure 2
 
+## M1
 ```{r}
 library(lavaan)
 
 model <- '
 
-  Connect    ~ Nostalgia
-  Skepticism ~ Nostalgia
-  Support_AI ~ Nostalgia + Connect + Skepticism
-  Support_5G ~ Nostalgia + Connect + Skepticism
+  Connect    ~ a1*Nostalgia
+  Skepticism ~ a2*Nostalgia
+  Support_AI ~ c1*Nostalgia + b1*Connect + d2*Skepticism
+  Support_5G ~ c2*Nostalgia + b2*Skepticism + d1*Connect
 
- 
+  Connect    ~~  Skepticism
+  Support_AI ~~  Support_5G
+
+  indirect1ab  := a1*b1
+  indirect1ad  := a2*d2
+  indirect2ab  := a2*b2 
+  indirect2ad  := a1*d1
+  
+  direct1      := c1
+  direct2      := c2
+
 '
 
-fit <- sem(model, 
-           data      = d, 
-           estimator = "MLR", 
-           mimic     = "Mplus")
+fit1 <- sem(model, 
+            data      = d, 
+            estimator = "MLR", 
+            mimic     = "Mplus")
 ```
 
 
 
 ```{r}
-fit %>% 
+fit1 %>% 
   parameterestimates(standardized = T) %>%  
-  filter(op %in% c("~", ":="))  %>% 
+  #filter(op %in% c("~", ":="))  %>% 
   select(-std.lv, -std.nox) %>% 
   flextable::flextable() %>% 
   flextable::colformat_double(digits = 4) %>% 
   flextable::color(j = "std.all", color = "red") %>% 
   flextable::autofit()
+```
+
+## M2
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Nostalgia
+  Skepticism ~ a2*Nostalgia
+  Support_AI ~ c1*Nostalgia + b1*Connect + d2*Skepticism
+  Support_5G ~ c2*Nostalgia + b2*Skepticism + b1*Connect
+
+  Connect    ~~  Skepticism
+  Support_AI ~~  Support_5G
+
+
+
+'
+
+fit2 <- sem(model, 
+            data      = d, 
+            estimator = "MLR", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit2 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+## M3
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Nostalgia
+  Skepticism ~ a2*Nostalgia
+  Support_AI ~ c1*Nostalgia + b1*Connect + b2*Skepticism
+  Support_5G ~ c2*Nostalgia + b2*Skepticism + d1*Connect
+
+  Connect    ~~  Skepticism
+  Support_AI ~~  Support_5G
+
+
+
+'
+
+fit3 <- sem(model, 
+            data      = d, 
+            estimator = "MLR", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit3 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+# M4
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Nostalgia
+  Skepticism ~ a2*Nostalgia
+  Support_AI ~ c1*Nostalgia + b1*Connect + d2*Skepticism
+  Support_5G ~ c1*Nostalgia + b2*Skepticism + d1*Connect
+
+  Connect    ~~  Skepticism
+  Support_AI ~~  Support_5G
+
+
+
+'
+
+fit4 <- sem(model, 
+            data      = d, 
+            estimator = "MLR", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit4 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+## comparison M1, M2, M3, M4
+
+Table 2
+```{r}
+library(lavaanExtra)
+mylist <- lst(fit1, fit2, fit3, fit4)
+mylist %>%
+   map( ~cfa(.x, data = d)) %>%
+   lavaanExtra::nice_fit(nice_table = TRUE) |>
+   flextable::fontsize(size = 9, part = "all")  %>% 
+   flextable::align(align = "center", part = "body") %>% 
+   flextable::valign(valign = "center", part = "body")
 ```
 
