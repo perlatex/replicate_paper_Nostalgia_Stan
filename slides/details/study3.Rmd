@@ -68,7 +68,6 @@ constructs %>%
 
 # Results and Discussion
 
-
 ```{r}
 d <- rawdat %>% 
   rowwise() %>% 
@@ -88,6 +87,7 @@ d %>%
   head() %>% 
   flextable::flextable()
 ```
+
 
 ```{r}
 d %>%
@@ -121,6 +121,9 @@ d_c %>%
   as.data.frame() %>% 
   rownames_to_column(var = "Variables")
 ```
+
+
+
 # Figure 3
 
 ## M1
@@ -183,8 +186,6 @@ model <- '
   Connect    ~~  Skepticism
   Support_AI ~~  Support_5G
 
-
-
 '
 
 fit2 <- sem(model, 
@@ -205,6 +206,8 @@ fit2 %>%
   flextable::autofit()
 ```
 
+
+
 ## M3
 
 ```{r}
@@ -219,8 +222,6 @@ model <- '
 
   Connect    ~~  Skepticism
   Support_AI ~~  Support_5G
-
-
 
 '
 
@@ -258,8 +259,6 @@ model <- '
   Connect    ~~  Skepticism
   Support_AI ~~  Support_5G
 
-
-
 '
 
 fit4 <- sem(model, 
@@ -280,6 +279,8 @@ fit4 %>%
   flextable::autofit()
 ```
 
+
+
 ## comparison M1, M2, M3, M4
 
 Table 4
@@ -293,4 +294,197 @@ mylist %>%
    flextable::align(align = "center", part = "body") %>% 
    flextable::valign(valign = "center", part = "body")
 ```
+
+
+
+
+
+# Figure 4
+
+注意到这里的enrolAI和enrol5G是二元变量，因此需要这里的[技术](https://lavaan.ugent.be/tutorial/cat.html#endogenous-categorical-variables)
+
+
+```{r}
+d_ordered <- d %>% 
+  mutate(
+    across(starts_with("enrol"), ordered)
+  )
+d_ordered 
+```
+
+
+## M1
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Mnos
+  Skepticism ~ a2*Mnos
+  enrolAI    ~ c1*Mnos + b1*Connect + d2*Skepticism
+  enrol5G    ~ c2*Mnos + b2*Skepticism + d1*Connect
+
+  Connect    ~~  Skepticism
+  enrolAI    ~~  enrol5G
+
+  indirect1ab  := a1*b1
+  indirect1ad  := a2*d2
+  indirect2ab  := a2*b2 
+  indirect2ad  := a1*d1
+  
+  direct1      := c1
+  direct2      := c2
+
+'
+
+fit1 <- sem(model, 
+            data      = d_ordered, 
+            estimator = "WLSMV", 
+            mimic     = "Mplus")
+```
+
+
+
+
+```{r}
+fit1 %>% 
+  parameterestimates(standardized = T) %>%  
+  #filter(op %in% c("~", ":="))  %>% 
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+
+## M2
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Mnos
+  Skepticism ~ a2*Mnos
+  enrolAI    ~ c1*Mnos + b1*Connect + d2*Skepticism
+  enrol5G    ~ c2*Mnos + b2*Skepticism + b1*Connect
+
+  Connect    ~~  Skepticism
+  enrolAI    ~~  enrol5G
+
+'
+
+fit2 <- sem(model, 
+            data      = d_ordered,  
+            estimator = "WLSMV", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit2 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+## M3
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Mnos
+  Skepticism ~ a2*Mnos
+  enrolAI    ~ c1*Mnos + b1*Connect + b2*Skepticism
+  enrol5G    ~ c2*Mnos + b2*Skepticism + d1*Connect
+
+  Connect    ~~  Skepticism
+  enrolAI    ~~  enrol5G
+
+'
+
+fit3 <- sem(model, 
+            data      = d_ordered, 
+            estimator = "WLSMV", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit3 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+## M4
+
+```{r}
+library(lavaan)
+
+model <- '
+
+  Connect    ~ a1*Mnos
+  Skepticism ~ a2*Mnos
+  enrolAI    ~ c1*Mnos + b1*Connect + d2*Skepticism
+  enrol5G    ~ c1*Mnos + b2*Skepticism + d1*Connect
+
+  Connect   ~~  Skepticism
+  enrolAI   ~~  enrol5G
+
+'
+
+fit4 <- sem(model, 
+            data      = d_ordered, 
+            estimator = "WLSMV", 
+            mimic     = "Mplus")
+```
+
+
+
+```{r}
+fit4 %>% 
+  parameterestimates(standardized = T) %>%  
+  select(-std.lv, -std.nox) %>% 
+  flextable::flextable() %>% 
+  flextable::colformat_double(digits = 4) %>% 
+  flextable::color(j = "std.all", color = "red") %>% 
+  flextable::autofit()
+```
+
+
+
+## comparison M1, M2, M3, M4
+
+Table 5
+
+```{r}
+index <- c("chisq", "df", "pvalue", "rmsea", "cfi", "tli", "srmr")
+
+mylist <- lst(fit1, fit2, fit3, fit4)
+
+mylist %>%
+   map(~fitMeasures(.x, fit.measures = index, output = "vector")) %>%
+   map(~t(as.matrix(.x))) %>% 
+   map(as.data.frame) %>% 
+   list_rbind(names_to = "model") %>% 
+   flextable::flextable() %>% 
+   flextable::colformat_double(j = c("chisq", "srmr"), digits = 3) %>% 
+   flextable::align(align = "center", part = "all") %>% 
+   flextable::valign(valign = "center", part = "body")
+```
+
 
