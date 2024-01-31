@@ -232,7 +232,7 @@ fit3 %>%
 ```
 
 
-# M4
+## M4
 
 ```{r}
 library(lavaan)
